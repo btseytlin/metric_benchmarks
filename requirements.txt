@@ -1,0 +1,2 @@
+powerful-benchmarker==0.9.32
+pytorch-metric-learning==0.9.88
