@@ -12,7 +12,7 @@ def get_runner():
     parser.add_argument("--merge_argparse_when_resuming", default=False, action='store_true')
     parser.add_argument("--root_config_folder", type=str, default=None)
     parser.add_argument("--bayes_opt_iters", type=int, default=20)
-    parser.add_argument("--reproductions", type=str, default="10")
+    parser.add_argument("--reproductions", type=str, default="5")
     args, _ = parser.parse_known_args()
 
     if args.bayes_opt_iters > 0:
