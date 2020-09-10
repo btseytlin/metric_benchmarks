@@ -1,4 +1,4 @@
-rm -r experiments/contrastive
+rm -r /data/thesis/benchmarks/experiments/contrastive
 
 python3 runners/basic.py --experiment_name contrastive \
 --dataset~OVERRIDE~ {CUB200: {download: True}} \

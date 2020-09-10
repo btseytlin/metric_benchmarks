@@ -7,11 +7,11 @@ def get_runner():
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--pytorch_home", type=str, default="~/.cache/torch/") # absolute path
     parser.add_argument("--dataset_root", type=str, default="/home/boris/Documents/thesis/benchmarks/datasets") # absolute path
-    parser.add_argument("--root_experiment_folder", type=str, default="/home/boris/Documents/thesis/benchmarks/experiments") # absolute path
+    parser.add_argument("--root_experiment_folder", type=str, default="/data/thesis/benchmarks/experiments") # absolute path
     parser.add_argument("--global_db_path", type=str, default=None)
     parser.add_argument("--merge_argparse_when_resuming", default=False, action='store_true')
     parser.add_argument("--root_config_folder", type=str, default=None)
-    parser.add_argument("--bayes_opt_iters", type=int, default=20)
+    parser.add_argument("--bayes_opt_iters", type=int, default=10)
     parser.add_argument("--reproductions", type=str, default="5")
     args, _ = parser.parse_known_args()
 
