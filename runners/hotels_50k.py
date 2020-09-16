@@ -19,6 +19,34 @@ def url_to_image(url):
     return image
 
 
+def make_symlinks(root):
+    for dataset in ['train', 'test']:
+        chains_dir = os.path.join(root, 'symlinks', dataset, 'chains')
+        hotels_dir = os.path.join(root, 'symlinks', dataset, 'hotels')
+
+        os.makedirs(chains_dir, exist_ok=True)
+        os.makedirs(hotels_dir, exist_ok=True)
+
+        for chain in os.listdir(os.path.join(root, 'images', dataset)):
+            for hotel in os.listdir(os.path.join(root, 'images', dataset, chain)):
+                for im_source in os.listdir(os.path.join(root, 'images', dataset, chain, hotel)):
+                    for image_name in os.listdir(os.path.join(root, 'images', dataset, chain, hotel, im_source)):
+                        img_path = os.path.join(root, 'images', dataset, chain, hotel, im_source, image_name)
+
+                        os.makedirs(os.path.join(chains_dir, chain), exist_ok=True)
+                        os.makedirs(os.path.join(hotels_dir, hotel), exist_ok=True)
+
+                        chain_symlink_path = os.path.join(chains_dir, chain, image_name)
+                        if not os.path.exists(chain_symlink_path):
+                            os.symlink(img_path, chain_symlink_path)
+
+                        hotel_symlink_path = os.path.join(hotels_dir, hotel, image_name)
+                        if not os.path.exists(hotel_symlink_path):
+                            os.symlink(img_path, hotel_symlink_path)
+
+                        print('Symlink created:', chain_symlink_path, hotel_symlink_path)
+            
+
 def download_and_resize(root, image_list):
     for im in image_list:
         try:
@@ -27,7 +55,8 @@ def download_and_resize(root, image_list):
             if not os.path.exists(saveDir):
                 os.makedirs(saveDir)
 
-            savePath = os.path.join(saveDir, str(im_id)+'.'+ im_url.split('.')[-1])
+            img_name = str(im_id)+'.'+ im_url.split('.')[-1]
+            savePath = os.path.join(saveDir, img_name)
 
             if not os.path.isfile(savePath):
                 img = url_to_image(im[4])
@@ -39,8 +68,9 @@ def download_and_resize(root, image_list):
                     height = 640
                     width = round((640 * img.shape[1]) / img.shape[0])
                     img = cv2.resize(img,(width, height))
-                cv2.imwrite(savePath,img)
-                print('Good: ' + savePath)
+                cv2.imwrite(savePath, img)
+
+                print('Saved: ' + savePath)
             else:
                 print('Already saved: ' + savePath)
         except Exception:
@@ -113,6 +143,9 @@ def download_hotels_50k(root):
         subprocess.run(['lz4', '-dc', '--no-sparse', '|',  'tar', '-C', out_path, '-x'],  capture_output=True, check=True)
     else:
         print('Archive already unpacked')
+
+    print('Creating symlinks')
+    make_symlinks(root)
 
 
 class Hotels50KDatasetChains(Dataset):
