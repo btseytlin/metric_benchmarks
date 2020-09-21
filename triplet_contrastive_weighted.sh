@@ -1,6 +1,7 @@
 rm -r /data/thesis/benchmarks/experiments/triplet_contrastive_weighted
 
 python3 runners/triplet_contrastive_weighted.py --experiment_name triplet_contrastive_weighted \
+--hook_container~APPLY~2 {save_models: False} \
 --dataset~OVERRIDE~ {CUB200: {download: True}} \
 --loss_funcs~OVERRIDE~ \
 {metric_loss: {TripletContrastiveWeightedLoss: {\

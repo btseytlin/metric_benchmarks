@@ -24,13 +24,16 @@ class ClassWeightedSampler(Sampler):
     """
     At every iteration, this will return m samples per class, weighted by the weights array.
     """
-    def __init__(self, labels, m, min_per_class=2, max_per_class=6, reweight_interval = 2, weights=None, length_before_new_iter=100000):
+    def __init__(self, labels, m, mode='scores', min_per_class=2, max_per_class=6, reweight_interval = 2, weights=None, length_before_new_iter=100000):
         if isinstance(labels, torch.Tensor):
             labels = labels.numpy()
         self.m = int(m)
         self.min_per_class = int(min_per_class) 
         self.max_per_class = int(max_per_class) 
-        self.reweight_interval = reweight_interval
+        self.reweight_interval = int(reweight_interval)
+        
+        assert mode in ('scores', 'errors')
+        self.mode = mode
 
         self.labels_to_indices = c_f.get_labels_to_indices(labels)
         self.labels = list(self.labels_to_indices.keys())
@@ -47,7 +50,13 @@ class ClassWeightedSampler(Sampler):
         self.list_size = length_before_new_iter
         if self.length_of_single_pass < self.list_size:
             self.list_size -= (self.list_size) % (self.length_of_single_pass)
-            
+    
+    def update_with_scores(self, scores):
+        if self.mode == 'scores':
+            self.update_weights(scores)
+        elif self.mode == 'errors':
+            self.update_weights(1 - scores)
+
     def update_weights(self, weights):
         self.weights = normalize(softmax(weights))
 
@@ -124,7 +133,7 @@ class CustomHookFactory(HookFactory):
                                                                                 collate_fn)
             f1_scores = get_knn_f1_score(embeddings_and_labels, sampler)
 
-            sampler.update_weights(f1_scores)
+            sampler.update_with_scores(f1_scores)
 
 
         def end_of_epoch_hook(trainer):

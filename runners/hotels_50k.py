@@ -8,6 +8,7 @@ import urllib
 import urllib.request
 import subprocess
 
+
 class AppURLopener(urllib.request.FancyURLopener):
     version = "Mozilla/5.0"
 
@@ -27,10 +28,21 @@ def make_symlinks(root):
         os.makedirs(chains_dir, exist_ok=True)
         os.makedirs(hotels_dir, exist_ok=True)
 
+        if dataset == 'test':
+            dataset = os.path.join('test', 'unoccluded')            
+
         for chain in os.listdir(os.path.join(root, 'images', dataset)):
+            if chain.startswith('.'):
+                continue
             for hotel in os.listdir(os.path.join(root, 'images', dataset, chain)):
+                if hotel.startswith('.'):
+                    continue
                 for im_source in os.listdir(os.path.join(root, 'images', dataset, chain, hotel)):
+                    if im_source.startswith('.'):
+                        continue
                     for image_name in os.listdir(os.path.join(root, 'images', dataset, chain, hotel, im_source)):
+                        if image_name.startswith('.'):
+                            continue
                         img_path = os.path.join(root, 'images', dataset, chain, hotel, im_source, image_name)
 
                         os.makedirs(os.path.join(chains_dir, chain), exist_ok=True)
@@ -134,37 +146,62 @@ def download_hotels_50k(root):
     url = 'https://cs.slu.edu/~stylianou/images/hotels-50k/test.tar.lz4'
     archive_path = os.path.join(root, 'images', 'test.tar.lz4')
     if not os.path.exists(archive_path):
-        subprocess.run(['wget', url, '-O', archive_path],  capture_output=True, check=True)
+        subprocess.run(['wget', url, '-O', archive_path, '--no-check-certificate'],  capture_output=True, check=True)
     else:
         print('Archive already downloaded')
 
-    out_path = os.path.join(root, 'images', 'test')
-    if not os.path.exists(out_path):
-        subprocess.run(['lz4', '-dc', '--no-sparse', '|',  'tar', '-C', out_path, '-x'],  capture_output=True, check=True)
+    out_path = os.path.join(root, 'images')
+    if not os.path.exists(os.path.join(out_path, 'test')):
+        command = ['lz4', '-dc', '--no-sparse',  archive_path, '|',  'tar', '-C', out_path, '-xz']
+        print(' '.join(command))
+        subprocess.run(command,  capture_output=True, check=True)
     else:
         print('Archive already unpacked')
 
     print('Creating symlinks')
     make_symlinks(root)
+    print('Done downloading and setting up the dataset.')
 
 
-class Hotels50KDatasetChains(Dataset):
-    def __init__(self, root, transform=None, download=False):
+class Hotels50KDataset(Dataset):
+    def __init__(self, root, target='chains', transform=None, download=False):
+        assert target in ('chains', 'hotels')
         if download:
-            retcode = download_hotels_50k(root)
+            download_hotels_50k(root)
 
-        self.dataset = datasets.ImageFolder(root, transform=transform)
+        symlinks_dir = os.path.join(root, 'symlinks')
+        symlinks_train_dir = os.path.join(symlinks_dir, 'train', target)
+        symlinks_test_dir = os.path.join(symlinks_dir, 'test', target)
 
+        print('Loading image folders')
+        self.original_train_dataset = datasets.ImageFolder(symlinks_train_dir, transform=transform)
+        self.original_test_dataset = datasets.ImageFolder(symlinks_test_dir, transform=transform)
+        
+        self.train_indices = np.arange(len(original_train_dataset))
+        self.test_indices = np.arange(len(original_train_dataset), len(original_train_dataset)+len(original_test_dataset))
+
+        print('Concatting dataset')
+        self.dataset = torch.utils.data.ConcatDataset([original_train_dataset, original_test_dataset])
+
+        print('Getting labels')
         # these look useless, but are required by powerful-benchmarker
         self.labels = np.array([b for (a, b) in self.dataset.imgs])
         self.transform = transform 
- 
+    
+    def get_split_indices(self, split_name):
+        if split_name == "test":
+            return self.test_indices
+        elif split_name == "train":
+            return self.train_indices
+        return None
+
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
         return self.dataset[idx]
 
+
 if __name__ == "__main__":
-    root = '/data/thesis/Hotels-50K'
+    root = os.path.join(os.getcwd(), 'hotels50k')
     dataset = Hotels50KDatasetChains(root=root, download=True)
