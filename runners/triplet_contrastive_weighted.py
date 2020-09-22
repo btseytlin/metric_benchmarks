@@ -77,7 +77,7 @@ class TripletContrastiveWeightedLoss(BaseMetricLossFunction):
         self.num_non_zero_neg_pairs = (contrastive_neg > 0).nonzero().size(0)
         #print('Contrastive neg', contrastive_neg)
         
-        full_loss = self.alpha*triplet_loss + (1-self.alpha)*(contrastive_pos + contrastive_neg) 
+        full_loss = self.alpha*triplet_loss + (contrastive_pos + contrastive_neg) 
         self.num_non_zero_triplets = (full_loss > 0).nonzero().size(0)
         
         #print(full_loss)
