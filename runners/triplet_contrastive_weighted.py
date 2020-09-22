@@ -44,14 +44,20 @@ class TripletContrastiveWeightedLoss(BaseMetricLossFunction):
         indices_tuple = lmu.convert_to_triplets(indices_tuple, labels, t_per_anchor=self.triplets_per_anchor)
         
         anchor_idx, positive_idx, negative_idx = indices_tuple
+        
+        #print('Anchors, positives, negatives', anchor_idx, positive_idx, negative_idx)
         if len(anchor_idx) == 0:
             return self.zero_losses()
         
         anchors, positives, negatives = embeddings[anchor_idx], embeddings[positive_idx], embeddings[negative_idx]
-
-        a_p_dist = F.pairwise_distance(anchors, positives, self.distance_norm)
-        a_n_dist = F.pairwise_distance(anchors, negatives, self.distance_norm)
-        p_n_dist = F.pairwise_distance(positives, negatives, self.distance_norm)
+        
+        mat = lmu.get_pairwise_mat(embeddings, embeddings, use_similarity=False, squared=False)
+        
+        #print(mat)
+        a_p_dist = mat[anchor_idx, positive_idx]
+        a_n_dist = mat[anchor_idx, negative_idx]
+        p_n_dist = mat[positive_idx, negative_idx]
+        #print('An dist by mat', a_n_dist)
         
         #print('AP', a_p_dist, 'AN', a_n_dist, 'PN', p_n_dist)
         dist = a_p_dist - a_n_dist
@@ -71,7 +77,7 @@ class TripletContrastiveWeightedLoss(BaseMetricLossFunction):
         self.num_non_zero_neg_pairs = (contrastive_neg > 0).nonzero().size(0)
         #print('Contrastive neg', contrastive_neg)
         
-        full_loss = self.alpha*triplet_loss + (1-self.alpha)*(contrastive_pos + contrastive_neg)
+        full_loss = self.alpha*triplet_loss + (1-self.alpha)*(contrastive_pos + contrastive_neg) 
         self.num_non_zero_triplets = (full_loss > 0).nonzero().size(0)
         
         #print(full_loss)
@@ -80,6 +86,7 @@ class TripletContrastiveWeightedLoss(BaseMetricLossFunction):
         
     def get_default_reducer(self):
         return AvgNonZeroReducer()
+    
 
 r = get_runner()
 
