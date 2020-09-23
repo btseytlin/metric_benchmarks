@@ -1,1 +1,1 @@
-find . -type f -regex '.*/saved_models/.*.pth' -exec rm {} \;
+find /data/thesis/benchmarks/experiments -type f -regex '.*/saved_models/.*.pth' -exec rm {} \;

@@ -13,23 +13,17 @@ from sklearn.metrics import f1_score
 from pytorch_metric_learning.utils import stat_utils
 from pytorch_metric_learning.utils.accuracy_calculator import get_lone_query_labels, get_label_counts
 
-def softmax(x):
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum(axis=0)
 
-def normalize(v):
-    return v / np.sum(v)
 
 class ClassWeightedSampler(Sampler):
     """
     At every iteration, this will return m samples per class, weighted by the weights array.
     """
-    def __init__(self, labels, m, mode='scores', min_per_class=2, max_per_class=6, reweight_interval = 2, weights=None, length_before_new_iter=100000):
+    def __init__(self, labels, m, mode='scores', min_per_class=1, reweight_interval = 2, weights=None, length_before_new_iter=100000):
         if isinstance(labels, torch.Tensor):
             labels = labels.numpy()
         self.m = int(m)
         self.min_per_class = int(min_per_class) 
-        self.max_per_class = int(max_per_class) 
         self.reweight_interval = int(reweight_interval)
         
         assert mode in ('scores', 'errors')
@@ -38,7 +32,7 @@ class ClassWeightedSampler(Sampler):
         self.labels_to_indices = c_f.get_labels_to_indices(labels)
         self.labels = list(self.labels_to_indices.keys())
         if weights is None:
-            weights = [1/len(self.labels)]*len(self.labels)
+            weights = [1]*len(self.labels)
         
         self.weights = np.array(weights)
         
@@ -55,14 +49,16 @@ class ClassWeightedSampler(Sampler):
         if self.mode == 'scores':
             self.update_weights(scores)
         elif self.mode == 'errors':
-            self.update_weights(1 - scores)
+            self.update_weights(2 - scores)
 
     def update_weights(self, weights):
-        self.weights = normalize(softmax(weights))
+        self.weights = np.array(weights)
 
     @property
     def m_per_class(self):
-        return np.clip((self.length_of_single_pass*self.weights).astype(int), a_min=self.min_per_class, a_max=self.max_per_class)
+        per_class = (self.m*self.weights).astype(int)
+        clipped = np.clip(per_class, a_min=self.min_per_class, a_max=self.m)
+        return clipped
     
     def __len__(self):
         return self.list_size

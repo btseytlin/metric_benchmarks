@@ -8,3 +8,5 @@ python3 runners/weighted_sampler.py --experiment_name weighted_sampler_errors \
 {metric_loss: {ContrastiveLoss: {\
 pos_margin~BAYESIAN~: [0, 1], \
 neg_margin~BAYESIAN~: [0, 1]}}} 
+
+./cleanup.sh
