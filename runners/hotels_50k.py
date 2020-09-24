@@ -133,7 +133,7 @@ def download_hotels_50k(root):
 
     print('Unpacking dataset archive')
     archive_path = os.path.join(root, 'input', 'dataset.tar.gz')
-    out_path = os.path.join(root, 'input', 'dataset')    
+    out_path = os.path.join(root, 'input')    
     if not os.path.exists(out_path):
         subprocess.run(['tar', '-C', out_path, '-zxvf', archive_path],  capture_output=True, check=True)
     else:
