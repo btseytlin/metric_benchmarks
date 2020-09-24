@@ -204,4 +204,4 @@ class Hotels50KDataset(Dataset):
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
-    dataset = Hotels50KDatasetChains(root=root, download=True)
+    dataset = Hotels50KDataset(root=root, download=True)
