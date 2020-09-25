@@ -3,11 +3,15 @@ import argparse
 import faulthandler 
 faulthandler.enable()
 
+import os
+
+cwd = os.getcwd()
+
 def get_runner():
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--pytorch_home", type=str, default="~/.cache/torch/") # absolute path
-    parser.add_argument("--dataset_root", type=str, default="/home/boris/Documents/thesis/benchmarks/datasets") # absolute path
-    parser.add_argument("--root_experiment_folder", type=str, default="/data/thesis/benchmarks/experiments") # absolute path
+    parser.add_argument("--dataset_root", type=str, default=f"{cwd}/datasets") # absolute path
+    parser.add_argument("--root_experiment_folder", type=str, default=f"{cwd}/experiments") # absolute path
     parser.add_argument("--global_db_path", type=str, default=None)
     parser.add_argument("--merge_argparse_when_resuming", default=False, action='store_true')
     parser.add_argument("--root_config_folder", type=str, default=None)
