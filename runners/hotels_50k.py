@@ -177,11 +177,11 @@ class Hotels50KDataset(Dataset):
         self.original_train_dataset = datasets.ImageFolder(symlinks_train_dir, transform=transform)
         self.original_test_dataset = datasets.ImageFolder(symlinks_test_dir, transform=transform)
         
-        self.train_indices = np.arange(len(original_train_dataset))
-        self.test_indices = np.arange(len(original_train_dataset), len(original_train_dataset)+len(original_test_dataset))
+        self.train_indices = np.arange(len(self.original_train_dataset))
+        self.test_indices = np.arange(len(self.original_train_dataset), len(self.original_train_dataset)+len(self.original_test_dataset))
 
         print('Concatting dataset')
-        self.dataset = torch.utils.data.ConcatDataset([original_train_dataset, original_test_dataset])
+        self.dataset = torch.utils.data.ConcatDataset([self.original_train_dataset, self.original_test_dataset])
 
         print('Getting labels')
         # these look useless, but are required by powerful-benchmarker
