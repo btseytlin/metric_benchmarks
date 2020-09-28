@@ -9,6 +9,8 @@ import urllib
 import urllib.request
 import subprocess
 
+from tqdm import tqdm
+
 
 class AppURLopener(urllib.request.FancyURLopener):
     version = "Mozilla/5.0"
@@ -186,14 +188,12 @@ class Hotels50KDataset(Dataset):
 
         print('Getting labels')
         # these look useless, but are required by powerful-benchmarker
-        self.labels = np.array([b for (a, b) in self.dataset.imgs])
+        self.labels = np.concatenate([self.original_train_dataset.targets, self.original_test_dataset.targets])
         self.transform = transform 
     
     def get_split_indices(self, split_name):
         if split_name == "test":
             return self.test_indices
-        elif split_name == "train":
-            return self.train_indices
         return None
 
     def __len__(self):
