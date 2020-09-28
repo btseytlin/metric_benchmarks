@@ -1,7 +1,8 @@
-rm -r /data/thesis/benchmarks/experiments/weighted_sampler_errors
+rm -r $PWD/experiments/weighted_sampler_errors
 
 python3 runners/weighted_sampler.py --experiment_name weighted_sampler_errors \
 --dataset~OVERRIDE~ {CUB200: {download: True}} \
+--bayes_opt_iters 25 \
 --factories {hook~OVERRIDE~: {CustomHookFactory: {}}} \
 --sampler~OVERRIDE~ {ClassWeightedSampler: {m: 6, mode: 'errors'}} \
 --loss_funcs~OVERRIDE~ \

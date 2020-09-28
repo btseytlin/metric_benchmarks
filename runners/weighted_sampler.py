@@ -57,7 +57,7 @@ class ClassWeightedSampler(Sampler):
     @property
     def m_per_class(self):
         per_class = (self.m*self.weights).astype(int)
-        clipped = np.clip(per_class, a_min=self.min_per_class, a_max=self.m)
+        clipped = np.clip(per_class, a_min=self.min_per_class, a_max=9999)
         return clipped
     
     def __len__(self):
