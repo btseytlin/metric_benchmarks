@@ -11,6 +11,11 @@ import subprocess
 
 from tqdm import tqdm
 
+from powerful_benchmarker.split_managers import ClassDisjointSplitManager, BaseSplitManager, IndexSplitManager
+from torchvision import transforms
+import torch
+import numpy as np
+
 
 class AppURLopener(urllib.request.FancyURLopener):
     version = "Mozilla/5.0"
@@ -202,6 +207,37 @@ class Hotels50KDataset(Dataset):
     def __getitem__(self, idx):
         return self.dataset[idx]
 
+
+class UseOriginalTestSplitManager(BaseSplitManager):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.split_names = ["test"]
+
+    def _create_split_schemes(self, datasets):
+        output = {}
+        for transform_type, v1 in datasets.items():
+            output[transform_type] = {}
+            for split_name, v2 in v1.items():
+                indices = v2.get_split_indices(split_name)
+                if indices is not None:
+                    output[transform_type][split_name] = torch.utils.data.Subset(v2, indices)
+                else:
+                    output[transform_type][split_name] = v2
+        return {self.get_split_scheme_name(0): output}
+
+    def get_test_set_name(self):
+        return 'UsingOriginalTest'
+
+    def get_base_split_scheme_name(self):
+        return self.get_test_set_name()
+
+    def get_split_scheme_name(self, partition):
+        return self.get_base_split_scheme_name()
+
+    def split_assertions(self):
+        pass
+
+    
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
