@@ -13,7 +13,7 @@ from sklearn.metrics import f1_score
 from pytorch_metric_learning.utils import stat_utils
 from pytorch_metric_learning.utils.accuracy_calculator import get_lone_query_labels, get_label_counts
 
-
+from pytorch_metric_learning.losses import ContrastiveLoss
 from pytorch_metric_learning.reducers import AvgNonZeroReducer
 from pytorch_metric_learning.utils import loss_and_miner_utils as lmu
 
@@ -36,7 +36,7 @@ def dist_from_centroid_regularizer(embeddings, labels, threshold=0.1):
     
     return reg_val
     
-class RegularizerReducer(AvgNonZeroReducer):
+class RegularizerAvgNonZeroReducer(AvgNonZeroReducer):
     def __init__(self, weight=0.5, threshold=0.1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight = weight
@@ -52,7 +52,19 @@ class RegularizerReducer(AvgNonZeroReducer):
         
         return loss_val + self.reg_val
 
+class ContrastiveLossRegularized(ContrastiveLoss):
+    def __init__(self, reg_weight=0.5, reg_threshold=0.1, *args, **kwargs):
+        self.reg_weight = reg_weight
+        self.reg_threshold = reg_threshold
+
+        super().__init__(*args, **kwargs)
+        
+
+    def get_default_reducer(self):
+        return RegularizerAvgNonZeroReducer(weight=self.reg_weight, threshold=self.reg_threshold)
+
 
 r = get_runner()
-r.register("reducer", RegularizerReducer)
+r.register("reducer", RegularizerAvgNonZeroReducer)
+r.register("loss", ContrastiveLossRegularized)
 r.run()
