@@ -3,6 +3,7 @@ import argparse
 import faulthandler 
 faulthandler.enable()
 
+from hotels_50k import UseOriginalTestSplitManager, Hotels50KDataset
 import os
 
 cwd = os.getcwd()
@@ -30,4 +31,6 @@ def get_runner():
         del args.reproductions
 
     r = runner(**(args.__dict__))
+    r.register('dataset', Hotels50KDataset)
+    r.register('split_manager', UseOriginalTestSplitManager)
     return r

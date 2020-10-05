@@ -26,12 +26,14 @@ def dist_from_centroid_regularizer(embeddings, labels, reg_threshold=0.1):
         label_indices = torch.where(labels==label)
         label_embeddings = embeddings[label_indices]
         centroids[label] = torch.mean(label_embeddings, axis=0)
+        dists = lmu.get_pairwise_mat(label_embeddings, centroids[label].reshape(1, -1), use_similarity=False, squared=False)
+        reg_val += (dists - reg_threshold).clamp(0, 1).sum()
     
-    all_centroids = torch.stack(list(centroids.values()))
-    pairwise_centroid_dists = lmu.get_pairwise_mat(all_centroids, all_centroids, use_similarity=False, squared=False)
-    for i in range(len(all_centroids)):
-        for j in range(i+1, len(all_centroids)):
-            reg_val += (reg_threshold - pairwise_centroid_dists[i][j]).clamp(0, 1).sum()
+    # all_centroids = torch.stack(list(centroids.values()))
+    # pairwise_centroid_dists = lmu.get_pairwise_mat(all_centroids, all_centroids, use_similarity=False, squared=False)
+    # for i in range(len(all_centroids)):
+    #     for j in range(i+1, len(all_centroids)):
+    #         reg_val += (reg_threshold - pairwise_centroid_dists[i][j]).clamp(0, 1).sum()
     
     
     return reg_val
