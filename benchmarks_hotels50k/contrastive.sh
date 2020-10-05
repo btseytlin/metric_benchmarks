@@ -1,6 +1,6 @@
 #rm -r $PWD/experiments/contrastive
 
-python3 runners/basic.py --experiment_name contrastive \
+python3 runners/basic.py --experiment_name contrastive_hotels \
 --dataset~OVERRIDE~ {Hotels50KDataset: {download: False, root: hotels50k}} \
 --loss_funcs~OVERRIDE~ \
 {metric_loss: {ContrastiveLoss: {\
