@@ -185,6 +185,10 @@ def download_hotels_50k(root):
             lmdb_dir = os.path.join(root, 'lmdb', target)
             lmdb_path = os.path.join(lmdb_dir, f'{split}.lmdb')
 
+            if os.path.exists(lmdb_path):
+                print('LMDB file already exists')
+                continue
+
             os.makedirs(lmdb_dir, exist_ok=True)
 
             print(f'Creating LMDB file for target {target} and split {split}')

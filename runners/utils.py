@@ -87,7 +87,7 @@ def dumps_pyarrow(obj):
     return pa.serialize(obj).to_buffer()
 
 
-def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=16):
+def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=8):
     directory = osp.expanduser(in_path)
     print("Loading dataset from %s" % directory)
     dataset = ImageFolder(directory, loader=raw_reader)
@@ -112,7 +112,10 @@ def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=16):
             txn = db.begin(write=True)
 
     # finish iterating through dataset
+    print('Final commit')
     txn.commit()
+
+    print('Writing keys and len')
     keys = [u'{}'.format(k).encode('ascii') for k in range(idx + 1)]
     with db.begin(write=True) as txn:
         txn.put(b'__keys__', dumps_pyarrow(keys))
