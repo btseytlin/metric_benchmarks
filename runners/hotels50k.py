@@ -16,6 +16,8 @@ from torchvision import transforms
 import torch
 import numpy as np
 
+from utils import ImageFolderLMDB, folder2lmdb
+
 
 class AppURLopener(urllib.request.FancyURLopener):
     version = "Mozilla/5.0"
@@ -148,7 +150,10 @@ def download_hotels_50k(root):
         print('Archive already unpacked')
 
     print('Downloading train images')
-    download_train_images(root)
+    if os.path.exists(os.path.join(root, 'images', 'train')):
+        print('Train images already loaded')
+    else:
+        download_train_images(root)
 
     print('Downloading test images archive')
     url = 'https://cs.slu.edu/~stylianou/images/hotels-50k/test.tar.lz4'
@@ -167,8 +172,27 @@ def download_hotels_50k(root):
         print('Archive already unpacked')
 
     print('Creating symlinks')
-    make_symlinks(root)
+    #make_symlinks(root)
+
+    print('Creating LMDB image folders')
+
+    symlinks_dir = os.path.join(root, 'symlinks')
+
+    for target in ('chains', 'hotels'):
+        for split in ('test', 'train'):
+            symlinks_dir = os.path.join(root, 'symlinks', split, target)
+
+            lmdb_dir = os.path.join(root, 'lmdb', target)
+            lmdb_path = os.path.join(lmdb_dir, f'{split}.lmdb')
+
+            os.makedirs(lmdb_dir, exist_ok=True)
+
+            print(f'Creating LMDB file for target {target} and split {split}')
+            folder2lmdb(symlinks_dir, lmdb_path)
+
     print('Done downloading and setting up the dataset.')
+
+
 
 
 class Hotels50KDataset(Dataset):
@@ -177,13 +201,12 @@ class Hotels50KDataset(Dataset):
         if download:
             download_hotels_50k(root)
 
-        symlinks_dir = os.path.join(root, 'symlinks')
-        symlinks_train_dir = os.path.join(symlinks_dir, 'train', target)
-        symlinks_test_dir = os.path.join(symlinks_dir, 'test', target)
+        train_path = os.path.join(root, 'lmdb', target, 'train.lmdb')
+        test_path = os.path.join(root, 'lmdb', target, 'test.lmdb')
 
         print('Loading image folders')
-        self.original_train_dataset = datasets.ImageFolder(symlinks_train_dir, transform=transform)
-        self.original_test_dataset = datasets.ImageFolder(symlinks_test_dir, transform=transform)
+        self.original_train_dataset = ImageFolderLMDB(train_path, transform=transform)
+        self.original_test_dataset = ImageFolderLMDB(test_path, transform=transform)
         
         self.train_indices = np.arange(len(self.original_train_dataset))
         self.test_indices = np.arange(len(self.original_train_dataset), len(self.original_train_dataset)+len(self.original_test_dataset))
@@ -209,8 +232,8 @@ class Hotels50KDataset(Dataset):
 
 
 class UseOriginalTestSplitManager(BaseSplitManager):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.split_names = ["test"]
 
     def _create_split_schemes(self, datasets):
@@ -236,7 +259,6 @@ class UseOriginalTestSplitManager(BaseSplitManager):
 
     def split_assertions(self):
         pass
-
     
 
 if __name__ == "__main__":
