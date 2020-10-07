@@ -4,3 +4,4 @@ opencv-python-headless
 pyarrow
 lmdb
 tqdm
+msgpack
