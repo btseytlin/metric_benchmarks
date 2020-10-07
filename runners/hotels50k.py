@@ -195,7 +195,7 @@ def download_hotels_50k(root):
 
 
 
-class Hotels50KDataset(Dataset):
+class Hotels50kDataset(Dataset):
     def __init__(self, root, target='chains', transform=None, download=False):
         assert target in ('chains', 'hotels')
         if download:
@@ -263,4 +263,4 @@ class UseOriginalTestSplitManager(BaseSplitManager):
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
-    dataset = Hotels50KDataset(root=root, download=True)
+    dataset = Hotels50kDataset(root=root, download=True)
