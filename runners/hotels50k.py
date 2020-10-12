@@ -232,7 +232,8 @@ class Hotels50kDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        return self.dataset[idx]
+        img, label = self.dataset[idx]
+        return dict(data=img, label=label)
 
 
 class UseOriginalTestSplitManager(BaseSplitManager):
@@ -267,4 +268,5 @@ class UseOriginalTestSplitManager(BaseSplitManager):
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
+    root = '/data/thesis/Hotels-50K'
     dataset = Hotels50kDataset(root=root, download=True)
