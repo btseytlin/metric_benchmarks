@@ -15,6 +15,7 @@ from powerful_benchmarker.split_managers import ClassDisjointSplitManager, BaseS
 from torchvision import transforms
 import torch
 import numpy as np
+import pickle
 
 from utils import ImageFolderLMDB, folder2lmdb
 
@@ -184,6 +185,7 @@ def download_hotels_50k(root):
 
             lmdb_dir = os.path.join(root, 'lmdb', target)
             lmdb_path = os.path.join(lmdb_dir, f'{split}.lmdb')
+            targets_path = os.path.join(lmdb_dir, f'{split}_targets.pkl')
 
             if os.path.exists(lmdb_path):
                 print('LMDB file already exists')
@@ -192,7 +194,11 @@ def download_hotels_50k(root):
             os.makedirs(lmdb_dir, exist_ok=True)
 
             print(f'Creating LMDB file for target {target} and split {split}')
-            folder2lmdb(symlinks_dir, lmdb_path)
+            targets = folder2lmdb(symlinks_dir, lmdb_path)
+            print(f'Storing targets at {targets_path}')
+            with open(targets_path, 'wb') as f:
+                pickle.dump(targets, f)
+            
 
     print('Done downloading and setting up the dataset.')
 
@@ -206,11 +212,19 @@ class Hotels50kDataset(Dataset):
             download_hotels_50k(root)
 
         train_path = os.path.join(root, 'lmdb', target, 'train.lmdb')
+        train_targets_path = os.path.join(root, 'lmdb', target, 'train_targets.pkl')
         test_path = os.path.join(root, 'lmdb', target, 'test.lmdb')
+        test_targets_path = os.path.join(root, 'lmdb', target, 'test_targets.pkl')
+
+        with open(train_targets_path, 'rb') as f:
+            train_targets = pickle.load(f)
+
+        with open(test_targets_path, 'rb') as f:
+            test_targets = pickle.load(f)
 
         print('Loading image folders')
-        self.original_train_dataset = ImageFolderLMDB(train_path, transform=transform)
-        self.original_test_dataset = ImageFolderLMDB(test_path, transform=transform)
+        self.original_train_dataset = ImageFolderLMDB(train_path, targets=train_targets, transform=transform)
+        self.original_test_dataset = ImageFolderLMDB(test_path, targets=test_targets, transform=transform)
         
         self.train_indices = np.arange(len(self.original_train_dataset))
         self.test_indices = np.arange(len(self.original_train_dataset), len(self.original_train_dataset)+len(self.original_test_dataset))
@@ -268,5 +282,9 @@ class UseOriginalTestSplitManager(BaseSplitManager):
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
-    root = '/data/thesis/Hotels-50K'
-    dataset = Hotels50kDataset(root=root, download=True)
+    dataset = Hotels50kDataset(root=root, target='hotels', download=True)
+
+    for obs in dataset:
+        print(obs['label'])
+        print(np.array(obs['data']).shape)
+        break

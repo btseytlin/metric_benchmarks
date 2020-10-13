@@ -14,6 +14,8 @@ import msgpack
 import tqdm
 import pyarrow as pa
 import numpy as np
+import lz4framed
+
 
 import torch
 import torch.utils.data as data
@@ -23,28 +25,34 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms, datasets
 
 
+def compress_serialize(thing):
+    return lz4framed.compress(pa.serialize(thing).to_buffer())
+
+def deserialize_decompress(thing):
+    return pa.deserialize(lz4framed.decompress(thing))
+
 class ImageFolderLMDB(data.Dataset):
-    def __init__(self, db_path, transform=None, target_transform=None):
+    def __init__(self, db_path, targets=None, transform=None, target_transform=None):
         self.db_path = db_path
         self.env = lmdb.open(db_path, subdir=osp.isdir(db_path),
                              readonly=True, lock=False,
                              readahead=False, meminit=False)
         with self.env.begin(write=False) as txn:
             # self.length = txn.stat()['entries'] - 1
-            self.length =pa.deserialize(txn.get(b'__len__'))
-            self.keys= pa.deserialize(txn.get(b'__keys__'))
+            self.length =deserialize_decompress(txn.get(b'__len__'))
+            self.keys= deserialize_decompress(txn.get(b'__keys__'))
 
         self.transform = transform
         self.target_transform = target_transform
 
-        self.targets = np.array([self[i][1] for i in range(self.length)])
+        self.targets = targets or np.array([self[i][1] for i in range(self.length)])
 
     def __getitem__(self, index):
         img, target = None, None
         env = self.env
         with env.begin(write=False) as txn:
             byteflow = txn.get(self.keys[index])
-        unpacked = pa.deserialize(byteflow)
+        unpacked = deserialize_decompress(byteflow)
 
         # load image
         imgbuf = unpacked[0]
@@ -77,17 +85,7 @@ def raw_reader(path):
     return bin_data
 
 
-def dumps_pyarrow(obj):
-    """
-    Serialize an object.
-
-    Returns:
-        Implementation-dependent bytes-like object
-    """
-    return pa.serialize(obj).to_buffer()
-
-
-def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=8):
+def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=8, map_size=1e11):
     directory = osp.expanduser(in_path)
     print("Loading dataset from %s" % directory)
     dataset = ImageFolder(directory, loader=raw_reader)
@@ -98,18 +96,20 @@ def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=8):
 
     print("Generate LMDB to %s" % lmdb_path)
     db = lmdb.open(lmdb_path, subdir=isdir,
-                   map_size=1099511627776 * 2, readonly=False,
+                   map_size=map_size, readonly=False,
                    meminit=False, map_async=True)
     
+    labels = []
     print(len(dataset), len(data_loader))
     txn = db.begin(write=True)
     for idx, data in tqdm.tqdm(enumerate(data_loader), total=len(data_loader)):
         # print(type(data), data)
         image, label = data[0]
-        txn.put(u'{}'.format(idx).encode('ascii'), dumps_pyarrow((image, label)))
+        txn.put(u'{}'.format(idx).encode('ascii'), compress_serialize((image, label)))
         if idx % write_frequency == 0:
             txn.commit()
             txn = db.begin(write=True)
+        labels.append(label)
 
     # finish iterating through dataset
     print('Final commit')
@@ -118,12 +118,14 @@ def folder2lmdb(in_path, out_path, write_frequency=5000, num_workers=8):
     print('Writing keys and len')
     keys = [u'{}'.format(k).encode('ascii') for k in range(idx + 1)]
     with db.begin(write=True) as txn:
-        txn.put(b'__keys__', dumps_pyarrow(keys))
-        txn.put(b'__len__', dumps_pyarrow(len(keys)))
+        txn.put(b'__keys__', compress_serialize(keys))
+        txn.put(b'__len__', compress_serialize(len(keys)))
 
     print("Flushing database ...")
     db.sync()
     db.close()
+
+    return labels
 
 
 if __name__ == "__main__":

@@ -5,3 +5,4 @@ pyarrow
 lmdb
 tqdm
 msgpack
+py-lz4framed
