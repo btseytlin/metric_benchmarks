@@ -31,6 +31,13 @@ def compress_serialize(thing):
 def deserialize_decompress(thing):
     return pa.deserialize(lz4framed.decompress(thing))
 
+
+def compress_serialize(thing):
+    return pa.serialize(thing).to_buffer()
+
+def deserialize_decompress(thing):
+    return pa.deserialize(thing)
+
 class ImageFolderLMDB(data.Dataset):
     def __init__(self, db_path, targets=None, transform=None, target_transform=None):
         self.db_path = db_path
