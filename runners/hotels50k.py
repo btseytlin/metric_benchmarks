@@ -13,11 +13,14 @@ from tqdm import tqdm
 
 from powerful_benchmarker.split_managers import ClassDisjointSplitManager, BaseSplitManager, IndexSplitManager
 from torchvision import transforms
+from torchvision.datasets import ImageFolder
+from torch.utils.data import DataLoader, Dataset
 import torch
 import numpy as np
 import pickle
+import lmdb
 
-from utils import ImageFolderLMDB, folder2lmdb
+from utils import ImageFolderLMDB, folder2lmdb, raw_reader, compress_serialize
 
 
 class AppURLopener(urllib.request.FancyURLopener):
@@ -29,6 +32,92 @@ def url_to_image(url):
     image = np.asarray(bytearray(resp.read()), dtype="uint8")
     image = cv2.imdecode(image, cv2.IMREAD_UNCHANGED)
     return image
+
+
+def make_lmdb(root, out_path, write_frequency=5000, num_workers=8, map_size=1e11):
+    idx = 0
+
+    if not os.path.exists(out_path):
+        os.makedirs(out_path, exist_ok=True)
+
+    for dataset in ['train', 'test']:
+        lmdb_path = os.path.join(out_path, f'{dataset}.lmdb')
+
+        print("Generate LMDB to %s" % lmdb_path)
+        db = lmdb.open(lmdb_path, 
+            subdir=False, 
+            map_size=map_size, 
+            readonly=False,
+            meminit=False,
+            map_async=True)
+
+        txn = db.begin(write=True)
+
+        dataset_dir = dataset
+        if dataset == 'test':
+            dataset_dir = os.path.join('test', 'unoccluded')            
+
+        chains = []
+        hotels = []
+        for chain in tqdm(os.listdir(os.path.join(root, 'images', dataset_dir))):
+            if chain.startswith('.'):
+                continue
+            for hotel in tqdm(os.listdir(os.path.join(root, 'images', dataset_dir, chain))):
+                if hotel.startswith('.'):
+                    continue
+
+                try:
+                    ds = ImageFolder(os.path.join(root, 'images', dataset_dir, chain, hotel), loader=raw_reader)
+                    data_loader = DataLoader(ds, num_workers=num_workers, collate_fn=lambda x: x)
+                except RuntimeError as e:
+                    print(e)
+                    continue
+
+                for data in data_loader:
+                    image, im_source = data[0]
+
+                # for im_source in os.listdir(os.path.join(root, 'images', dataset_dir, chain, hotel)):
+                #     if im_source.startswith('.'):
+                #         continue
+                #     for image_name in os.listdir(os.path.join(root, 'images', dataset_dir, chain, hotel, im_source)):
+                #         if image_name.startswith('.'):
+                #             continue
+                #         img_path = os.path.join(root, 'images', dataset_dir, chain, hotel, im_source, image_name)
+
+                #         with open(img_path, 'rb') as f:
+                #             image = f.read()
+
+                    txn.put(u'{}'.format(idx).encode('ascii'), compress_serialize((image, chain, hotel, im_source)))
+
+                    chains.append(int(chain))
+                    hotels.append(int(hotel))
+
+                    if idx % write_frequency == 0:
+                        txn.commit()
+                        txn = db.begin(write=True)
+
+                    idx += 1
+
+
+        txn.commit()
+
+        print('Writing keys and len')
+        keys = [u'{}'.format(k).encode('ascii') for k in range(idx + 1)]
+        with db.begin(write=True) as txn:
+            txn.put(b'__keys__', compress_serialize(keys))
+            txn.put(b'__len__', compress_serialize(len(keys)))
+
+        print("Flushing database ...")
+        db.sync()
+        db.close()
+
+        print(f'Dumping targets for {dataset}')
+
+        with open(os.path.join(out_path, f'{dataset}_chains.pkl'), 'wb') as f:
+            pickle.dump(chains, f)
+
+        with open(os.path.join(out_path, f'{dataset}_hotels.pkl'), 'wb') as f:
+            pickle.dump(hotels, f)
 
 
 def make_symlinks(root):
@@ -172,32 +261,39 @@ def download_hotels_50k(root):
     else:
         print('Archive already unpacked')
 
-    print('Creating symlinks')
-    #make_symlinks(root)
+    print('Creaing LMDB files')
+    lmdb_path = os.path.join(root, 'lmdb')
+    if os.path.exists(lmdb_path):
+        print('LMDB dir already exists')
+    else:
+        make_lmdb(root, lmdb_path)
 
-    print('Creating LMDB image folders')
+    # print('Creating symlinks')
+    # make_symlinks(root)
 
-    symlinks_dir = os.path.join(root, 'symlinks')
+    # print('Creating LMDB image folders')
 
-    for target in ('chains', 'hotels'):
-        for split in ('test', 'train'):
-            symlinks_dir = os.path.join(root, 'symlinks', split, target)
+    # symlinks_dir = os.path.join(root, 'symlinks')
 
-            lmdb_dir = os.path.join(root, 'lmdb', target)
-            lmdb_path = os.path.join(lmdb_dir, f'{split}.lmdb')
-            targets_path = os.path.join(lmdb_dir, f'{split}_targets.pkl')
+    # for target in ('chains', 'hotels'):
+    #     for split in ('test', 'train'):
+    #         symlinks_dir = os.path.join(root, 'symlinks', split, target)
 
-            if os.path.exists(lmdb_path):
-                print('LMDB file already exists')
-                continue
+    #         lmdb_dir = os.path.join(root, 'lmdb', target)
+    #         lmdb_path = os.path.join(lmdb_dir, f'{split}.lmdb')
+    #         targets_path = os.path.join(lmdb_dir, f'{split}_targets.pkl')
 
-            os.makedirs(lmdb_dir, exist_ok=True)
+    #         if os.path.exists(lmdb_path):
+    #             print('LMDB file already exists')
+    #             continue
 
-            print(f'Creating LMDB file for target {target} and split {split}')
-            targets = folder2lmdb(symlinks_dir, lmdb_path)
-            print(f'Storing targets at {targets_path}')
-            with open(targets_path, 'wb') as f:
-                pickle.dump(targets, f)
+    #         os.makedirs(lmdb_dir, exist_ok=True)
+
+    #         print(f'Creating LMDB file for target {target} and split {split}')
+    #         targets = folder2lmdb(symlinks_dir, lmdb_path)
+    #         print(f'Storing targets at {targets_path}')
+    #         with open(targets_path, 'wb') as f:
+    #             pickle.dump(targets, f)
             
 
     print('Done downloading and setting up the dataset.')
@@ -208,23 +304,38 @@ def download_hotels_50k(root):
 class Hotels50kDataset(Dataset):
     def __init__(self, root, target='chains', transform=None, download=False):
         assert target in ('chains', 'hotels')
+        self.target = target
         if download:
             download_hotels_50k(root)
 
-        train_path = os.path.join(root, 'lmdb', target, 'train.lmdb')
-        train_targets_path = os.path.join(root, 'lmdb', target, 'train_targets.pkl')
-        test_path = os.path.join(root, 'lmdb', target, 'test.lmdb')
-        test_targets_path = os.path.join(root, 'lmdb', target, 'test_targets.pkl')
+        train_path = os.path.join(root, 'lmdb', 'train.lmdb')
+        train_chains_path = os.path.join(root, 'lmdb', 'train_chains.pkl')
+        train_hotels_path = os.path.join(root, 'lmdb', 'train_hotels.pkl')
 
-        with open(train_targets_path, 'rb') as f:
-            train_targets = pickle.load(f)
+        test_path = os.path.join(root, 'lmdb', 'test.lmdb')
+        test_chains_path = os.path.join(root, 'lmdb', 'test_chains.pkl')
+        test_hotels_path = os.path.join(root, 'lmdb', 'test_hotels.pkl')
 
-        with open(test_targets_path, 'rb') as f:
-            test_targets = pickle.load(f)
+        with open(train_chains_path, 'rb') as f:
+            self.train_chains = pickle.load(f)
+
+        with open(train_hotels_path, 'rb') as f:
+            self.train_hotels = pickle.load(f)
+
+        with open(test_chains_path, 'rb') as f:
+            self.test_chains = pickle.load(f)
+
+        with open(test_hotels_path, 'rb') as f:
+            self.test_hotels = pickle.load(f)
+
+
+
+        self.train_targets = self.train_chains if self.target == 'chains' else self.train_hotels
+        self.test_targets = self.test_chains if self.target == 'chains' else self.test_hotels
 
         print('Loading image folders')
-        self.original_train_dataset = ImageFolderLMDB(train_path, targets=train_targets, transform=transform)
-        self.original_test_dataset = ImageFolderLMDB(test_path, targets=test_targets, transform=transform)
+        self.original_train_dataset = ImageFolderLMDB(train_path, transform=transform)
+        self.original_test_dataset = ImageFolderLMDB(test_path, transform=transform)
         
         self.train_indices = np.arange(len(self.original_train_dataset))
         self.test_indices = np.arange(len(self.original_train_dataset), len(self.original_train_dataset)+len(self.original_test_dataset))
@@ -234,8 +345,10 @@ class Hotels50kDataset(Dataset):
 
         print('Getting labels')
         # these look useless, but are required by powerful-benchmarker
-        self.labels = np.concatenate([self.original_train_dataset.targets, self.original_test_dataset.targets])
+        self.labels = np.concatenate([self.train_targets, self.test_targets])
         self.transform = transform 
+
+        print('Done loading dataset')
     
     def get_split_indices(self, split_name):
         if split_name == "test":
@@ -246,7 +359,11 @@ class Hotels50kDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        img, label = self.dataset[idx]
+        img, meta = self.dataset[idx]
+        if self.target == 'chains':
+            label = meta[0]
+        elif self.target == 'hotels':
+            label = meta[1]
         return dict(data=img, label=label)
 
 
@@ -282,9 +399,10 @@ class UseOriginalTestSplitManager(BaseSplitManager):
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
-    #root = '/data/thesis/Hotels-50K'
+    root = '/data/thesis/Hotels-50K'
     dataset = Hotels50kDataset(root=root, target='hotels', download=True)
 
+    print('Retrieving example')
     for obs in dataset:
         print(obs['label'])
         print(np.array(obs['data']).shape)

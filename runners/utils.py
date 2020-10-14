@@ -39,20 +39,18 @@ def deserialize_decompress(thing):
     return pa.deserialize(thing)
 
 class ImageFolderLMDB(data.Dataset):
-    def __init__(self, db_path, targets=None, transform=None, target_transform=None):
+    def __init__(self, db_path, transform=None, target_transform=None):
         self.db_path = db_path
         self.env = lmdb.open(db_path, subdir=osp.isdir(db_path),
                              readonly=True, lock=False,
                              readahead=False, meminit=False)
         with self.env.begin(write=False) as txn:
-            # self.length = txn.stat()['entries'] - 1
             self.length =deserialize_decompress(txn.get(b'__len__'))
             self.keys= deserialize_decompress(txn.get(b'__keys__'))
 
         self.transform = transform
         self.target_transform = target_transform
 
-        self.targets = targets or np.array([self[i][1] for i in range(self.length)])
 
     def __getitem__(self, index):
         img, target = None, None
@@ -69,15 +67,12 @@ class ImageFolderLMDB(data.Dataset):
         img = Image.open(buf).convert('RGB')
 
         # load label
-        target = unpacked[1]
+        meta = unpacked[1:]
 
         if self.transform is not None:
             img = self.transform(img)
 
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return img, target
+        return img, meta
 
     def __len__(self):
         return self.length
