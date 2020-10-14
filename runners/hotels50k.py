@@ -399,7 +399,6 @@ class UseOriginalTestSplitManager(BaseSplitManager):
 
 if __name__ == "__main__":
     root = os.path.join(os.getcwd(), 'hotels50k')
-    root = '/data/thesis/Hotels-50K'
     dataset = Hotels50kDataset(root=root, target='hotels', download=True)
 
     print('Retrieving example')
