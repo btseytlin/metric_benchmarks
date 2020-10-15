@@ -120,45 +120,6 @@ def make_lmdb(root, out_path, write_frequency=5000, num_workers=8, map_size=1e11
             pickle.dump(hotels, f)
 
 
-def make_symlinks(root):
-    for dataset in ['train', 'test']:
-        chains_dir = os.path.join(root, 'symlinks', dataset, 'chains')
-        hotels_dir = os.path.join(root, 'symlinks', dataset, 'hotels')
-
-        os.makedirs(chains_dir, exist_ok=True)
-        os.makedirs(hotels_dir, exist_ok=True)
-
-        if dataset == 'test':
-            dataset = os.path.join('test', 'unoccluded')            
-
-        for chain in os.listdir(os.path.join(root, 'images', dataset)):
-            if chain.startswith('.'):
-                continue
-            for hotel in os.listdir(os.path.join(root, 'images', dataset, chain)):
-                if hotel.startswith('.'):
-                    continue
-                for im_source in os.listdir(os.path.join(root, 'images', dataset, chain, hotel)):
-                    if im_source.startswith('.'):
-                        continue
-                    for image_name in os.listdir(os.path.join(root, 'images', dataset, chain, hotel, im_source)):
-                        if image_name.startswith('.'):
-                            continue
-                        img_path = os.path.join(root, 'images', dataset, chain, hotel, im_source, image_name)
-
-                        os.makedirs(os.path.join(chains_dir, chain), exist_ok=True)
-                        os.makedirs(os.path.join(hotels_dir, hotel), exist_ok=True)
-
-                        chain_symlink_path = os.path.join(chains_dir, chain, image_name)
-                        if not os.path.exists(chain_symlink_path):
-                            os.symlink(img_path, chain_symlink_path)
-
-                        hotel_symlink_path = os.path.join(hotels_dir, hotel, image_name)
-                        if not os.path.exists(hotel_symlink_path):
-                            os.symlink(img_path, hotel_symlink_path)
-
-                        print('Symlink created:', chain_symlink_path, hotel_symlink_path)
-            
-
 def download_and_resize(root, image_list):
     for im in image_list:
         try:
@@ -268,33 +229,6 @@ def download_hotels_50k(root):
     else:
         make_lmdb(root, lmdb_path)
 
-    # print('Creating symlinks')
-    # make_symlinks(root)
-
-    # print('Creating LMDB image folders')
-
-    # symlinks_dir = os.path.join(root, 'symlinks')
-
-    # for target in ('chains', 'hotels'):
-    #     for split in ('test', 'train'):
-    #         symlinks_dir = os.path.join(root, 'symlinks', split, target)
-
-    #         lmdb_dir = os.path.join(root, 'lmdb', target)
-    #         lmdb_path = os.path.join(lmdb_dir, f'{split}.lmdb')
-    #         targets_path = os.path.join(lmdb_dir, f'{split}_targets.pkl')
-
-    #         if os.path.exists(lmdb_path):
-    #             print('LMDB file already exists')
-    #             continue
-
-    #         os.makedirs(lmdb_dir, exist_ok=True)
-
-    #         print(f'Creating LMDB file for target {target} and split {split}')
-    #         targets = folder2lmdb(symlinks_dir, lmdb_path)
-    #         print(f'Storing targets at {targets_path}')
-    #         with open(targets_path, 'wb') as f:
-    #             pickle.dump(targets, f)
-            
 
     print('Done downloading and setting up the dataset.')
 
@@ -347,7 +281,6 @@ class Hotels50kDataset(Dataset):
         # these look useless, but are required by powerful-benchmarker
         self.labels = np.concatenate([self.train_targets, self.test_targets])
 
-        print(self.labels[:10], self.labels.shape)
         self.transform = transform 
 
         print('Done loading dataset')
