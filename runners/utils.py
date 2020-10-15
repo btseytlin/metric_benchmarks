@@ -55,8 +55,15 @@ class ImageFolderLMDB(data.Dataset):
     def __getitem__(self, index):
         img, target = None, None
         env = self.env
-        with env.begin(write=False) as txn:
-            byteflow = txn.get(self.keys[index])
+        try:
+            with env.begin(write=False) as txn:
+                byteflow = txn.get(self.keys[index])
+        except:
+            print(self, type(self))
+            print(index)
+            print(self.keys[index])
+            print(byteflow)
+            raise
         unpacked = deserialize_decompress(byteflow)
 
         # load image

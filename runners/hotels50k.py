@@ -102,7 +102,7 @@ def make_lmdb(root, out_path, write_frequency=5000, num_workers=8, map_size=1e11
         txn.commit()
 
         print('Writing keys and len')
-        keys = [u'{}'.format(k).encode('ascii') for k in range(idx + 1)]
+        keys = [u'{}'.format(k).encode('ascii') for k in range(idx)]
         with db.begin(write=True) as txn:
             txn.put(b'__keys__', compress_serialize(keys))
             txn.put(b'__len__', compress_serialize(len(keys)))
@@ -346,6 +346,8 @@ class Hotels50kDataset(Dataset):
         print('Getting labels')
         # these look useless, but are required by powerful-benchmarker
         self.labels = np.concatenate([self.train_targets, self.test_targets])
+
+        print(self.labels[:10], self.labels.shape)
         self.transform = transform 
 
         print('Done loading dataset')
@@ -364,6 +366,7 @@ class Hotels50kDataset(Dataset):
             label = meta[0]
         elif self.target == 'hotels':
             label = meta[1]
+        label = int(label)
         return dict(data=img, label=label)
 
 
