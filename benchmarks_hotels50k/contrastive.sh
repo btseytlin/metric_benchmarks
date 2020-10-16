@@ -1,7 +1,8 @@
 #rm -r $PWD/experiments/contrastive
 
 python3 runners/basic.py --experiment_name contrastive_hotels \
---dataset~OVERRIDE~ {Hotels50kDataset: {download: False, root: /data/thesis/Hotels-50K}} \
+--dataset~OVERRIDE~ {Hotels50kDataset: {download: False, root: $PWD/hotels50k}} \
+--trainer~APPLY~2 {dataloader_num_workers: 10, iterations_per_epoch: 1000} \
 --loss_funcs~OVERRIDE~ \
 {metric_loss: {ContrastiveLoss: {\
 pos_margin~BAYESIAN~: [0, 1], \
