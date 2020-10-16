@@ -35,31 +35,16 @@ def global_centroid_regularizer(embeddings,
         return reg_vals_own_centroid, reg_vals_other_centroids
     uniq_labels = sorted(np.array(torch.unique(labels).cpu()))
 
-    #print('Unique labels according to batch', uniq_labels)
 
     label_to_centroid_idx = {label: idx for idx, label in enumerate(centroids.keys())}
     centroid_vectors = torch.stack(list(centroids.values()))
-
-    print(centroid_vectors[0])
-    print(centroids[25])
-    assert centroid_vectors[0] == centroids[25]
-    
-    #print('labels to centroids', label_to_centroid_idx)
-
-    """
-    labels to centroids {25: 0, 26: 1, 27: 2, 28: 3, 29: 4, 30: 5, 31: 6, 32: 7, 33: 8, 34: 9, 35: 10, 36: 11, 37: 12, 38: 13, 39: 14, 40: 15, 41: 16, 42: 17, 43: 18, 44: 19, 45: 20, 46: 21, 47: 22, 48: 23, 49: 24, 50: 25, 51: 26, 52: 27, 53: 28, 54: 29, 55: 30, 56: 31, 57: 32, 58: 33, 59: 34, 60: 35, 61: 36, 62: 37, 63: 38, 64: 39, 65: 40, 66: 41, 67: 42, 68: 43, 69: 44, 70: 45, 71: 46, 72: 47, 73: 48, 74: 49, 75: 50, 76: 51, 77: 52, 78: 53, 79: 54, 80: 55, 81: 56, 82: 57, 83: 58, 84: 59, 85: 60, 86: 61, 87: 62, 88: 63, 89: 64, 90: 65, 91: 66, 92: 67, 93: 68, 94: 69, 95: 70, 96: 71, 97: 72, 98: 73, 99: 74}
-    
-    labels to centroids {25: 0, 26: 1, 27: 2, 28: 3, 29: 4, 30: 5, 31: 6, 32: 7, 33: 8, 34: 9, 35: 10, 36: 11, 37: 12, 38: 13, 39: 14, 40: 15, 41: 16, 42: 17, 43: 18, 44: 19, 45: 20, 46: 21, 47: 22, 48: 23, 49: 24, 50: 25, 51: 26, 52: 27, 53: 28, 54: 29, 55: 30, 56: 31, 57: 32, 58: 33, 59: 34, 60: 35, 61: 36, 62: 37, 63: 38, 64: 39, 65: 40, 66: 41, 67: 42, 68: 43, 69: 44, 70: 45, 71: 46, 72: 47, 73: 48, 74: 49, 75: 50, 76: 51, 77: 52, 78: 53, 79: 54, 80: 55, 81: 56, 82: 57, 83: 58, 84: 59, 85: 60, 86: 61, 87: 62, 88: 63, 89: 64, 90: 65, 91: 66, 92: 67, 93: 68, 94: 69, 95: 70, 96: 71, 97: 72, 98: 73, 99: 74}
-
-
-    """
 
     if embeddings.get_device() > -1:
         centroid_vectors = centroid_vectors.to(embeddings.get_device())
     
     
     
-    #print(centroid_vectors)
+    #print(cenroid_vectors)
     dists = lmu.get_pairwise_mat(embeddings, 
                                  centroid_vectors,
                                  use_similarity=False, 
@@ -69,7 +54,6 @@ def global_centroid_regularizer(embeddings,
     for i, label in enumerate(uniq_labels):
         if int(label) not in centroids:
             continue
-        #print(label)
         label_indices = torch.where(labels.flatten()==label)[0]
         centroid_idx = label_to_centroid_idx[int(label)]
         
@@ -88,10 +72,8 @@ def global_centroid_regularizer(embeddings,
         
         other_centroid_reg, _ = (reg_other_threshold - dist_other_centroids).clamp(0, 999).max(dim=1)
         #print('Other centroid reg', other_centroid_reg)
-        #print()
         reg_vals_own_centroid[label_indices] = reg_own_weight*own_centroid_reg.cpu()
         reg_vals_other_centroids[label_indices] = reg_other_weight*other_centroid_reg.cpu()
-        #print(reg_vals)
     return reg_vals_own_centroid, reg_vals_other_centroids
 
 
@@ -104,6 +86,7 @@ class ContrastiveLossRegularized(ContrastiveLoss):
         reg_own_threshold=0.1,
         reg_other_threshold=0.2,
         centroids = None,
+        delay_epochs=5,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -112,6 +95,7 @@ class ContrastiveLossRegularized(ContrastiveLoss):
         self.reg_own_threshold = reg_own_threshold
         self.reg_other_threshold = reg_other_threshold
         self.centroids = centroids
+        self.delay_epochs = delay_epochs
 
     def compute_loss(self, embeddings, labels, indices_tuple):
         loss_dict = super().compute_loss(embeddings, labels, indices_tuple)
@@ -176,16 +160,17 @@ class CustomHookFactory(HookFactory):
             return centroids
         
         def end_of_epoch_hook(trainer):
-            models = trainer.models
-            train_dataset = split_manager.get_dataset("eval", "train")
+            if trainer.epoch >= trainer.loss_funcs['metric_loss'].delay_epochs:
+                models = trainer.models
+                train_dataset = split_manager.get_dataset("eval", "train")
 
-            train_label_set = split_manager.get_label_set("eval", "train")
-            #print('Train label set', train_label_set)
-            #print('Test label set', split_manager.get_label_set("eval", "test"))
-            #print('Val label set', split_manager.get_label_set("eval", "val"))
-            centroids = OrderedDict(get_centroids(train_dataset, models))
-            #print('Obtained centroids')
-            trainer.loss_funcs['metric_loss'].centroids = centroids
+                train_label_set = split_manager.get_label_set("eval", "train")
+                #print('Train label set', train_label_set)
+                #print('Test label set', split_manager.get_label_set("eval", "test"))
+                #print('Val label set', split_manager.get_label_set("eval", "val"))
+                centroids = OrderedDict(get_centroids(train_dataset, models))
+                #print('Obtained centroids')
+                trainer.loss_funcs['metric_loss'].centroids = centroids
 
             return helper_hook(trainer)
 
