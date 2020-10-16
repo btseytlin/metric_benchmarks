@@ -28,8 +28,8 @@ def global_centroid_regularizer(embeddings,
                                 reg_other_weight=1, 
                                 reg_other_threshold=0.2):
 
-    reg_vals_own_centroid = torch.empty((len(embeddings),))
-    reg_vals_other_centroids = torch.empty((len(embeddings),))
+    reg_vals_own_centroid = torch.zeros((len(embeddings),))
+    reg_vals_other_centroids = torch.zeros((len(embeddings),))
 
     if not centroids:
         return reg_vals_own_centroid, reg_vals_other_centroids
