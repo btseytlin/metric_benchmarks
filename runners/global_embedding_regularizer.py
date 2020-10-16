@@ -26,11 +26,13 @@ def global_centroid_regularizer(embeddings,
                                 reg_own_weight=1, 
                                 reg_own_threshold=0.1, 
                                 reg_other_weight=1, 
-                                reg_other_threshold=0.2,
-                                reg_warmup=5,
-                                reg_warmup_current=0):
+                                reg_other_threshold=0.2):
+
+    reg_vals_own_centroid = torch.empty((len(embeddings),))
+    reg_vals_other_centroids = torch.empty((len(embeddings),))
+
     if not centroids:
-        return torch.zeros((len(embeddings), )), torch.zeros((len(embeddings), ))
+        return reg_vals_own_centroid, reg_vals_other_centroids
     uniq_labels = sorted(np.array(torch.unique(labels).cpu()))
 
     #print('Unique labels according to batch', uniq_labels)
@@ -51,8 +53,7 @@ def global_centroid_regularizer(embeddings,
     if embeddings.get_device() > -1:
         centroid_vectors = centroid_vectors.to(embeddings.get_device())
     
-    reg_vals_own_centroid = torch.empty((len(embeddings),))
-    reg_vals_other_centroids = torch.empty((len(embeddings),))
+    
     
     #print(centroid_vectors)
     dists = lmu.get_pairwise_mat(embeddings, 
@@ -60,9 +61,7 @@ def global_centroid_regularizer(embeddings,
                                  use_similarity=False, 
                                  squared=False)
     
-    warmup_coef = np.clip(np.log(reg_warmup_current)/np.log(reg_warmup), 0, 1)
 
-    print('warmup', warmup_coef)
     for i, label in enumerate(uniq_labels):
         if not int(label) in centroids:
             continue
@@ -86,9 +85,11 @@ def global_centroid_regularizer(embeddings,
         other_centroid_reg, _ = (reg_other_threshold - dist_other_centroids).clamp(0, 999).max(dim=1)
         #print('Other centroid reg', other_centroid_reg)
         #print()
-        reg_vals_own_centroid[label_indices] = warmup_coef * reg_own_weight*own_centroid_reg.cpu()
-        reg_vals_other_centroids[label_indices] = warmup_coef * reg_other_weight*other_centroid_reg.cpu()
+        reg_vals_own_centroid[label_indices] = reg_own_weight*own_centroid_reg.cpu()
+        reg_vals_other_centroids[label_indices] = reg_other_weight*other_centroid_reg.cpu()
         #print(reg_vals)
+    print('own', reg_vals_own_centroid)
+    print('other', reg_vals_other_centroids)
     return reg_vals_own_centroid, reg_vals_other_centroids
 
 
@@ -100,7 +101,6 @@ class ContrastiveLossRegularized(ContrastiveLoss):
         reg_other_weight=0.1,
         reg_own_threshold=0.1,
         reg_other_threshold=0.2,
-        reg_warmup = 5,
         centroids = None,
         **kwargs
     ):
@@ -109,8 +109,6 @@ class ContrastiveLossRegularized(ContrastiveLoss):
         self.reg_other_weight = reg_other_weight
         self.reg_own_threshold = reg_own_threshold
         self.reg_other_threshold = reg_other_threshold
-        self.reg_warmup = reg_warmup
-        self._warmup = 0
         self.centroids = centroids
 
     def compute_loss(self, embeddings, labels, indices_tuple):
@@ -121,11 +119,8 @@ class ContrastiveLossRegularized(ContrastiveLoss):
             reg_own_weight=self.reg_own_weight, 
             reg_other_weight=self.reg_other_weight,
             reg_own_threshold=self.reg_own_threshold,
-            reg_other_threshold=self.reg_other_threshold,
-            reg_warmup_current=self._warmup,
-            reg_warmup=self.reg_warmup,
-                                                                            
-            )
+            reg_other_threshold=self.reg_other_threshold,                                                                            
+        )
         reg_dict = {"losses": reg_own_centroid,
                     "indices": torch.tensor(list(range(len(embeddings)))),
                     "reduction_type": "element"}
@@ -189,7 +184,6 @@ class CustomHookFactory(HookFactory):
             centroids = OrderedDict(get_centroids(train_dataset, models))
             #print('Obtained centroids')
             trainer.loss_funcs['metric_loss'].centroids = centroids
-            trainer.loss_funcs['metric_loss']._warmup = trainer.epoch
 
             return helper_hook(trainer)
 
