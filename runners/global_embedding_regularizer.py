@@ -40,9 +40,9 @@ def global_centroid_regularizer(embeddings,
     label_to_centroid_idx = {label: idx for idx, label in enumerate(centroids.keys())}
     centroid_vectors = torch.stack(list(centroids.values()))
 
-    print(centroids_vectors[0])
+    print(centroid_vectors[0])
     print(centroids[25])
-    assert centroids_vectors[0] == centroids[25]
+    assert centroid_vectors[0] == centroids[25]
     
     #print('labels to centroids', label_to_centroid_idx)
 
