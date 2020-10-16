@@ -35,7 +35,7 @@ def global_centroid_regularizer(embeddings,
         return reg_vals_own_centroid, reg_vals_other_centroids
     uniq_labels = sorted(np.array(torch.unique(labels).cpu()))
 
-
+    #print('Batch uniq labels', uniq_labels)
     label_to_centroid_idx = {label: idx for idx, label in enumerate(centroids.keys())}
     centroid_vectors = torch.stack(list(centroids.values()))
 
@@ -52,8 +52,6 @@ def global_centroid_regularizer(embeddings,
     
 
     for i, label in enumerate(uniq_labels):
-        if int(label) not in centroids:
-            continue
         label_indices = torch.where(labels.flatten()==label)[0]
         centroid_idx = label_to_centroid_idx[int(label)]
         
