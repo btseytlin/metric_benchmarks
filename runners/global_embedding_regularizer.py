@@ -63,7 +63,7 @@ def global_centroid_regularizer(embeddings,
     
 
     for i, label in enumerate(uniq_labels):
-        if not int(label) in centroids:
+        if int(label) not in centroids:
             continue
         #print(label)
         label_indices = torch.where(labels.flatten()==label)[0]
@@ -88,8 +88,6 @@ def global_centroid_regularizer(embeddings,
         reg_vals_own_centroid[label_indices] = reg_own_weight*own_centroid_reg.cpu()
         reg_vals_other_centroids[label_indices] = reg_other_weight*other_centroid_reg.cpu()
         #print(reg_vals)
-    print('own', reg_vals_own_centroid)
-    print('other', reg_vals_other_centroids)
     return reg_vals_own_centroid, reg_vals_other_centroids
 
 
