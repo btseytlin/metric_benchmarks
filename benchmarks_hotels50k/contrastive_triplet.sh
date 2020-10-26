@@ -1,5 +1,5 @@
 python3 runners/contrastive_triplet.py --experiment_name hotels_contrastive_triplet \
---dataset~OVERRIDE~ {Hotels50kDataset: {download: False, target: 'chains'}} \
+--dataset~OVERRIDE~ {Hotels50kDataset: {download: False, target: 'chains', root: $PWD/hotels50k}} \
 --split_manager~SWAP~1 {IndexSplitManager: {}} \
 --split_manager~APPLY~2 {helper_split_manager: {UseOriginalTestSplitManager: {}}} \
 --trainer~APPLY~2 {dataloader_num_workers: 6, iterations_per_epoch: 500} \
