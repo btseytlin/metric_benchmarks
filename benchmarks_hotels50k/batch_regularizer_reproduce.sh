@@ -1,5 +1,6 @@
 python3 runners/batch_regularizer.py --experiment_name hotels_batch_regularizer_reproduce \
 --dataset~OVERRIDE~ {Hotels50kDataset: {download: False, target: 'chains', root: $PWD/hotels50k}} \
+--patience 4 \
 --trainer~APPLY~2 {dataloader_num_workers: 6, iterations_per_epoch: 500} \
 --tester~APPLY~2 {dataloader_num_workers: 6} \
 --bayes_opt_iters 0 \
