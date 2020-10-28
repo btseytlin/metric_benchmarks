@@ -3,7 +3,7 @@ python3 runners/batch_regularizer.py --experiment_name hotels_batch_regularizer_
 --trainer~APPLY~2 {dataloader_num_workers: 6, iterations_per_epoch: 500} \
 --tester~APPLY~2 {dataloader_num_workers: 6} \
 --bayes_opt_iters 0 \
---split_manager~SWAP~1 {IndexSplitManager: {}} \
+--split_manager~SWAP~1 {ClosedSetSplitManager: {}} \
 --split_manager~APPLY~2 {helper_split_manager: {UseOriginalTestSplitManager: {}}} \
 --loss_funcs~OVERRIDE~ \
 {metric_loss: {ContrastiveLossRegularized: {\
