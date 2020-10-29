@@ -27,12 +27,13 @@ def url_to_image(url):
 
 
 def make_lmdb(root, out_path, write_frequency=5000, num_workers=8, map_size=1e11):
-    idx = 0
-
     if not os.path.exists(out_path):
         os.makedirs(out_path, exist_ok=True)
 
     for dataset in ['train', 'test']:
+        keys = []
+        idx = 0
+
         lmdb_path = os.path.join(out_path, f'{dataset}.lmdb')
 
         print("Generate LMDB to %s" % lmdb_path)
@@ -68,8 +69,9 @@ def make_lmdb(root, out_path, write_frequency=5000, num_workers=8, map_size=1e11
                 for data in data_loader:
                     image, im_source = data[0]
 
+                    key = u'{}'.format(idx).encode('ascii')
 
-                    txn.put(u'{}'.format(idx).encode('ascii'), compress_serialize((image, chain, hotel, im_source)))
+                    txn.put(key, compress_serialize((image, chain, hotel, im_source)))
 
                     chains.append(int(chain))
                     hotels.append(int(hotel))
@@ -78,13 +80,12 @@ def make_lmdb(root, out_path, write_frequency=5000, num_workers=8, map_size=1e11
                         txn.commit()
                         txn = db.begin(write=True)
 
+                    keys.append(key)
                     idx += 1
-
 
         txn.commit()
 
         print('Writing keys and len')
-        keys = [u'{}'.format(k).encode('ascii') for k in range(idx)]
         with db.begin(write=True) as txn:
             txn.put(b'__keys__', compress_serialize(keys))
             txn.put(b'__len__', compress_serialize(len(keys)))
