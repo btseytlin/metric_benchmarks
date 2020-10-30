@@ -1,4 +1,4 @@
-python3 runners/basic.py --experiment_name contrastive_hotels \
+python3 runners/basic.py --experiment_name hotels_instance_contrastive \
 --dataset~OVERRIDE~ {Hotels50kDataset: {download: False, target: 'hotels', root: $PWD/hotels50k}} \
 --patience 4 \
 --split_manager~SWAP~1 {ClosedSetSplitManager: {}} \

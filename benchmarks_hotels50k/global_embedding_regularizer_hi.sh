@@ -1,4 +1,4 @@
-python3 runners/global_embedding_regularizer.py --experiment_name hotels_global_embedding_regularizer \
+python3 runners/global_embedding_regularizer.py --experiment_name hotels_instance_global_embedding_regularizer \
 --dataset~OVERRIDE~ {Hotels50kDataset: {download: False, target: 'hotels', root: $PWD/hotels50k}} \
 --patience 4 \
 --trainer~APPLY~2 {set_min_label_to_zero: False, dataloader_num_workers: 6, iterations_per_epoch: 500} \
