@@ -1,4 +1,4 @@
-python3 runners/baseline_triplet.py --experiment_name baseline_triplet \
+python3 runners/baseline_triplet.py --experiment_name hotels_baseline_triplet \
 --dataset~OVERRIDE~ {Hotels50kDataset: {download: False, target: 'chains', root: $PWD/hotels50k}} \
 --patience 4 \
 --split_manager~SWAP~1 {ClosedSetSplitManager: {}} \
