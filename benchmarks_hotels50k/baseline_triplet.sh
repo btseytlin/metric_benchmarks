@@ -8,7 +8,7 @@ python3 runners/baseline_triplet.py --experiment_name hotels_baseline_triplet \
 --bayes_opt_iters 7 \
 --loss_funcs~OVERRIDE~ \
 {metric_loss: {TripletLossMeanReducer: {\
-margin~BAYESIAN~: [0, 1], \
+margin~BAYESIAN~: [0.1, 0.5], \
 }}} \
 --mining_funcs~OVERRIDE~ \
-{tuple_miner: {BatchHardMiner: {}}} \
+{tuple_miner: {BatchHardMiner: {}}}
